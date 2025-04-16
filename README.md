@@ -1,6 +1,6 @@
 # MapReduce
 
-Wrote this scaffolding to practice MapReduce problems.
+Wrote this scaffolding to practice MapReduce problems (simulated via processes).
 
 ## Usage
 
