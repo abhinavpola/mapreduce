@@ -144,6 +144,8 @@ def map_func(
 
 def reduce_worker(reducer_idx, shuffle_dict, output_file):
     # shuffle_dict[reducer_idx].get() returns an item from a list of tuples of key-values
+    collected_data = defaultdict(list)
+
     while True:
         # This will block until data is available
         metadata = shuffle_dict[reducer_idx].get()
@@ -151,12 +153,18 @@ def reduce_worker(reducer_idx, shuffle_dict, output_file):
             print(f"Reducer {reducer_idx} received poison pill")
             break
         else:
-            print(f"Reducer {reducer_idx} is processing key-values")
+            print(f"Reducer {reducer_idx} is collecting key-values")
             key, values = metadata
             print(
-                f"Reducer {reducer_idx} is processing key {key} with {len(values)} values"
+                f"Reducer {reducer_idx} is collecting key {key} with {len(values)} values"
             )
-            reduce_func(key, values, output_file)
+            collected_data[key].extend(values)
+
+    # Now that all mappers are done, process all collected data
+    print(f"Reducer {reducer_idx} processing all collected data")
+    for key, values in collected_data.items():
+        reduce_func(key, values, output_file)
+
     print(f"Done reducing with reducer {reducer_idx}")
 
 
@@ -231,6 +239,10 @@ def mapreduce(offsets, num_mappers, num_reducers):
                             )
                             shuffle_dict[reducer_idx].put((key, values))
 
+            # Only send poison pills after all mappers are done
+            print(
+                "All mappers have completed. Sending termination signals to reducers..."
+            )
             for r in range(num_reducers):
                 shuffle_dict[r].put(
                     None
@@ -253,5 +265,5 @@ if __name__ == "__main__":
     assert len(output) == len(ground_truth)
     for key, value in output.items():
         assert value == ground_truth[key]
-    
+
     print("All values match")
